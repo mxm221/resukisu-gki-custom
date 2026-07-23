@@ -1259,7 +1259,7 @@ jobs:
 
             if [ "${{ inputs.kernel_version }}" = "6.1" ]; then
               # 6.1：通过 setlocalversion 注入版本名称（旧格式）
-              KMI_LOCAL="-${KMI_TAG}-g${GHASH}-${BID}-4k"
+              KMI_LOCAL="-android14-11-gbd23337e42e7-ab14791245"
               sed -i "\$s|echo \"\$res\"|echo \"${KMI_LOCAL}\"|" ./scripts/setlocalversion 2>/dev/null || true
               sed -i "/^CONFIG_LOCALVERSION=/ s/=\"[^\"]*\"/=\"${KMI_LOCAL}\"/" ./arch/arm64/configs/gki_defconfig 2>/dev/null || true
             else
