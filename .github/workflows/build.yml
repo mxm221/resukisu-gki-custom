@@ -1301,6 +1301,9 @@ jobs:
           echo "使用构建时间: $DATESTR"
           echo "KBUILD_BUILD_TIMESTAMP=$DATESTR" >> "$GITHUB_ENV"
           echo "KBUILD_BUILD_VERSION=1" >> "$GITHUB_ENV"
+          # 对齐 Pixel 官包 /proc/version 的 (build-user@build-host)
+          echo "KBUILD_BUILD_USER=build-user" >> "$GITHUB_ENV"
+          echo "KBUILD_BUILD_HOST=build-host" >> "$GITHUB_ENV"
 
           # 统一处理 mkcompile_h 补丁
           f="$KERNEL_ROOT/common/scripts/mkcompile_h"
@@ -1335,6 +1338,11 @@ jobs:
             
             echo "当前 KSU 最新提交日期: ${KSU_LATEST_COMMIT_DATE}"
             echo "当前 SUSFS 最新提交日期: ${SUSFS_LATEST_COMMIT_DATE}"
+            export KBUILD_BUILD_TIMESTAMP="${KBUILD_BUILD_TIMESTAMP}"
+            export KBUILD_BUILD_VERSION="${KBUILD_BUILD_VERSION:-1}"
+            export KBUILD_BUILD_USER="${KBUILD_BUILD_USER:-build-user}"
+            export KBUILD_BUILD_HOST="${KBUILD_BUILD_HOST:-build-host}"
+            echo "compile identity: ${KBUILD_BUILD_USER}@${KBUILD_BUILD_HOST} / ${KBUILD_BUILD_TIMESTAMP}"
             set -ex
             cd "$KERNEL_ROOT"
 
