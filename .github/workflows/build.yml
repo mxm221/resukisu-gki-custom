@@ -258,8 +258,8 @@ jobs:
           rm -rf AnyKernel3/.git
 
           echo "克隆 SUSFS (分支: $SUSFS_BRANCH)..."
-          # ReSukiSU 使用 simonpunk 的原版 SUSFS
-          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH"
+          # ReSukiSU 改用 ShirkNeko susfs4ksu(含 add_sus_mount/add_try_umount 挂载隐藏)
+          git clone https://github.com/ShirkNeko/susfs4ksu.git -b "$SUSFS_BRANCH"
 
           # 检查是否启用自定义提交
           CONFIG_FILE="config/config"
