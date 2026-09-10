@@ -566,6 +566,22 @@ jobs:
 
           patch -p1 < 50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch || true
 
+          # android12-5.10: 50_add_susfs 把 susfs_sus_kstat_spoof_vfs_statfs 用在 extern 之前，-Werror=implicit-function-declaration
+          if [[ "${{ inputs.android_version }}" == "android12" && "${{ inputs.kernel_version }}" == "5.10" ]]; then
+            if grep -q 'susfs_sus_kstat_spoof_vfs_statfs' ./fs/statfs.c && ! grep -q 'extern int susfs_sus_kstat_spoof_vfs_statfs' ./fs/statfs.c; then
+              echo "注入 android12-5.10 statfs.c SUSFS 原型（补丁漏打 extern）"
+              sed -i '/#include "internal.h"/a #ifdef CONFIG_KSU_SUSFS_SUS_KSTAT\nextern int susfs_sus_kstat_spoof_vfs_statfs(struct inode *inode, struct kstatfs *buf, bool *is_fuse);\nextern bool susfs_is_inode_sus_kstat(struct inode *inode, bool *out_is_fuse);\n#endif' ./fs/statfs.c
+            elif grep -q 'susfs_sus_kstat_spoof_vfs_statfs' ./fs/statfs.c; then
+              # extern 在文件后部，调用在前，仍会 implicit declaration
+              if ! awk 'BEGIN{e=0;c=0} /extern int susfs_sus_kstat_spoof_vfs_statfs/{e=NR} /susfs_sus_kstat_spoof_vfs_statfs\(/{if(!c)c=NR} END{exit (c&&e&&c<e)?0:1}' ./fs/statfs.c; then
+                :
+              else
+                echo "前移 android12-5.10 statfs.c SUSFS 原型到 include 之后"
+                sed -i '/#include "internal.h"/a #ifdef CONFIG_KSU_SUSFS_SUS_KSTAT\nextern int susfs_sus_kstat_spoof_vfs_statfs(struct inode *inode, struct kstatfs *buf, bool *is_fuse);\nextern bool susfs_is_inode_sus_kstat(struct inode *inode, bool *out_is_fuse);\n#endif' ./fs/statfs.c
+              fi
+            fi
+          fi
+
           # 主补丁应用后还原临时上下文，避免无关源码差异保留到最终产物
           if [[ "${{ inputs.android_version }}" == "android12" && "${{ inputs.kernel_version }}" == "5.10" ]]; then
             if [[ "$CURRENT_SUB" -le 43 ]]; then
