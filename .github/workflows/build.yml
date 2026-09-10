@@ -580,6 +580,10 @@ jobs:
                 sed -i '/#include "internal.h"/a #ifdef CONFIG_KSU_SUSFS_SUS_KSTAT\nextern int susfs_sus_kstat_spoof_vfs_statfs(struct inode *inode, struct kstatfs *buf, bool *is_fuse);\nextern bool susfs_is_inode_sus_kstat(struct inode *inode, bool *out_is_fuse);\n#endif' ./fs/statfs.c
               fi
             fi
+            if grep -q 'security_sb_statfs' ./fs/susfs.c && ! grep -qF '#include <linux/security.h>' ./fs/susfs.c; then
+              echo "注入 android12-5.10 susfs.c linux/security.h"
+              sed -i '/#include <linux\/statfs.h>/a #include <linux/security.h>' ./fs/susfs.c
+            fi
           fi
 
           # 主补丁应用后还原临时上下文，避免无关源码差异保留到最终产物
