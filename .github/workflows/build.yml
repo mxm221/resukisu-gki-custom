@@ -442,8 +442,8 @@ jobs:
       - name: 添加 KernelSU
         working-directory: ${{ env.KERNEL_ROOT }}
         run: |
-          echo "添加 ReSukiSU..."
-          curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash $BRANCH
+          echo "添加 KernelSU-Next v3.4.1..."
+          curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/v3.4.1/kernel/setup.sh" | bash -s v3.4.1
 
           if [ -d "KernelSU/.git" ]; then
             KSU_LATEST_COMMIT_DATE=$(git -C KernelSU log -1 --date=format:'%Y-%m-%d %H:%M:%S %z' --format='%cd')
@@ -1186,6 +1186,7 @@ jobs:
         run: |
           cat >> "$DEFCONFIG" << 'EOF'
           CONFIG_KSU=y
+          CONFIG_KPROBES=y
           CONFIG_TMPFS_XATTR=y
           CONFIG_TMPFS_POSIX_ACL=y
           EOF
