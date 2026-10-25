@@ -115,6 +115,14 @@ on:
         required: false
         type: boolean
         default: false
+      page_size:
+        description: "ARM64 页大小。4k=原行为。16k 只给官包内核头是 16K 的机（Pixel 7 Pro cheetah 等），走 kernel_aarch64_16k"
+        required: false
+        type: choice
+        options:
+          - "4k"
+          - "16k"
+        default: "4k"
 
 jobs:
   build-custom-kernel:
@@ -139,6 +147,7 @@ jobs:
       enable_susfs: ${{ !inputs.cancel_susfs }}
       droidspaces: ${{ inputs.droidspaces || 'off' }}
       droidspaces_ntsync: ${{ inputs.droidspaces_ntsync || false }}
+      page_size: ${{ inputs.page_size || '4k' }}
 
   get-ksu-manager:
     uses: ./.github/workflows/get-manager.yml
