@@ -85,6 +85,10 @@ on:
         required: false
         type: boolean
         default: false
+      page_size:
+        required: false
+        type: string
+        default: "4k"
 
 jobs:
   build-kernel:
@@ -121,6 +125,7 @@ jobs:
           echo "CVE-2026-43499: ${{ inputs.cve_2026_43499_patch }}"
           echo "Droidspaces   : ${{ inputs.droidspaces }}"
           echo "NTSync        : ${{ inputs.droidspaces_ntsync }}"
+          echo "页大小        : ${{ inputs.page_size }}"
           echo "Stock Config  : 自动检测 config/stock_defconfig"
           echo "========================================"
 
@@ -1393,8 +1398,20 @@ jobs:
               if [ "${{ inputs.kernel_version }}" = "6.12" ]; then
                 LTO_FLAG="--lto=none"
               fi
-              tools/bazel build --disk_cache=/home/runner/.cache/bazel --config=fast $LTO_FLAG $FRAG_FLAG //common:kernel_aarch64_dist || exit 1
-              strings ./bazel-bin/common/kernel_aarch64/Image | grep 'Linux version'
+              # 4k 保持原目标。16k 走 AOSP kernel_aarch64_16k（Pixel 7 Pro / cheetah 官包页大小）
+              BAZEL_TARGET="//common:kernel_aarch64_dist"
+              IMAGE_REL="common/kernel_aarch64/Image"
+              if [ "${{ inputs.page_size }}" = "16k" ]; then
+                if [ "${{ inputs.kernel_version }}" != "6.1" ] && [ "${{ inputs.kernel_version }}" != "6.6" ] && [ "${{ inputs.kernel_version }}" != "6.12" ]; then
+                  echo "::error::page_size=16k 只支持 Bazel 6.1/6.6/6.12"
+                  exit 1
+                fi
+                BAZEL_TARGET="//common:kernel_aarch64_16k_dist"
+                IMAGE_REL="common/kernel_aarch64_16k/Image"
+              fi
+              tools/bazel build --disk_cache=/home/runner/.cache/bazel --config=fast $LTO_FLAG $FRAG_FLAG "$BAZEL_TARGET" || exit 1
+              strings "./bazel-bin/${IMAGE_REL}" | grep 'Linux version'
+              echo "IMAGE_REL=${IMAGE_REL}" >> "$GITHUB_ENV"
             fi
 
             echo "一般情况下不会出错，除非KSU仓库和SUSFS仓库代码不同。"
@@ -1411,7 +1428,8 @@ jobs:
           if [ "${{ inputs.android_version }}" == "android12" ] || [ "${{ inputs.android_version }}" == "android13" ]; then
             SRC_DIR="$KERNEL_ROOT/out/${{ inputs.android_version }}-${{ inputs.kernel_version }}/dist"
           else
-            SRC_DIR="$KERNEL_ROOT/bazel-bin/common/kernel_aarch64"
+            SRC_DIR="$KERNEL_ROOT/bazel-bin/${IMAGE_REL:-common/kernel_aarch64/Image}"
+            SRC_DIR="$(dirname "$SRC_DIR")"
           fi
 
           cp "$SRC_DIR/Image" ./
