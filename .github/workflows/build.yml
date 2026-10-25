@@ -458,6 +458,13 @@ jobs:
             echo "KSU_LATEST_COMMIT_DATE=未知" >> $GITHUB_ENV
           fi
 
+      - name: 对齐 Duck app_zygote 时间差
+        working-directory: ${{ env.KERNEL_ROOT }}
+        run: |
+          set -euo pipefail
+          python3 "$GITHUB_WORKSPACE/scripts/duck_newline_same_cost.py" "$KERNEL_ROOT"
+          grep -n ksu_duck_newline_same_cost "$KERNEL_ROOT/KernelSU/kernel/feature/selinux_hide.c"
+
       # ==================== 应用 SUSFS 补丁 ====================
       # SUSFS (Super User SUS FileSystem) 用于隐藏 root 痕迹
       - name: 应用 SUSFS 补丁
