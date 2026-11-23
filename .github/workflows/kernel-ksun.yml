@@ -1,0 +1,93 @@
+name: KernelSU-Next 内核
+
+on:
+  workflow_dispatch:
+    inputs:
+      ksu_commit:
+        description: "KernelSU-Next commit"
+        required: true
+        type: string
+        default: "896f45a78c0806cfd585c4e14e6989f867b143d7"
+
+jobs:
+  build-kernel:
+    name: panther-6.1.172-KernelSU-Next
+    uses: ./.github/workflows/build.yml
+    secrets: inherit
+    with:
+      android_version: android14
+      kernel_version: "6.1"
+      sub_level: "172"
+      os_patch_level: "2026-06"
+      ksu_variant: Next
+      ksu_branch: ${{ inputs.ksu_commit }}
+      version: "6.1.172-g8d0115b07367-ab16385437"
+      build_time: "Fri Sep 18 01:33:13 UTC 2026"
+      use_zram: false
+      use_bbg: false
+      use_rekernel: false
+      cve_2026_43499_patch: true
+      enable_susfs: true
+      supp_op: false
+      droidspaces: "off"
+      droidspaces_ntsync: false
+      page_size: "4k"
+
+  build-manager:
+    name: KernelSU-Next-manager
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout KernelSU-Next
+        uses: actions/checkout@v4
+        with:
+          repository: KernelSU-Next/KernelSU-Next
+          ref: ${{ inputs.ksu_commit }}
+          fetch-depth: 0
+          path: KernelSU-Next
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Setup Rust
+        run: |
+          rustup update stable
+          rustup target add aarch64-linux-android
+
+      - name: Setup NDK
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r27c
+
+      - name: Build arm64 ksud
+        working-directory: KernelSU-Next
+        env:
+          ANDROID_NDK_ROOT: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: |
+          set -euo pipefail
+          LLVM_BIN="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          export CC_aarch64_linux_android="$LLVM_BIN/aarch64-linux-android35-clang"
+          export CXX_aarch64_linux_android="${CC_aarch64_linux_android}++"
+          export AR_aarch64_linux_android="$LLVM_BIN/llvm-ar"
+          export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$CC_aarch64_linux_android"
+          mkdir -p userspace/ksud/bin/aarch64
+          cargo build --target aarch64-linux-android --release --manifest-path ./userspace/ksud/Cargo.toml
+          install -D userspace/ksud/target/aarch64-linux-android/release/ksud \
+            manager/app/src/main/jniLibs/arm64-v8a/libksud.so
+          ls -l manager/app/src/main/jniLibs/arm64-v8a/libksud.so
+          git rev-parse HEAD
+
+      - name: Build manager
+        working-directory: KernelSU-Next/manager
+        run: chmod +x ./gradlew && ./gradlew assembleRelease --no-daemon
+
+      - name: Upload manager
+        uses: actions/upload-artifact@v4
+        with:
+          name: KernelSU-Next-manager-${{ inputs.ksu_commit }}
+          path: KernelSU-Next/manager/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
