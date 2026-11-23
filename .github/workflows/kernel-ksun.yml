@@ -31,7 +31,7 @@ jobs:
       use_bbg: false
       use_rekernel: false
       cve_2026_43499_patch: true
-      enable_susfs: true
+      enable_susfs: false
       supp_op: false
       droidspaces: "off"
       droidspaces_ntsync: false
@@ -74,10 +74,16 @@ jobs:
         run: |
           set -euo pipefail
           LLVM_BIN="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          SYSROOT="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/sysroot"
           export CC_aarch64_linux_android="$LLVM_BIN/aarch64-linux-android35-clang"
           export CXX_aarch64_linux_android="${CC_aarch64_linux_android}++"
           export AR_aarch64_linux_android="$LLVM_BIN/llvm-ar"
           export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$CC_aarch64_linux_android"
+          export BINDGEN_EXTRA_CLANG_ARGS="--sysroot=$SYSROOT -I$SYSROOT/usr/include/aarch64-linux-android -I$SYSROOT/usr/include"
+          export BINDGEN_EXTRA_CLANG_ARGS_aarch64_linux_android="$BINDGEN_EXTRA_CLANG_ARGS"
+          clang --target=aarch64-linux-gnu -c -nostdlib \
+            -o userspace/ksud/.lkm_image_bootstrap.o \
+            userspace/ksud/src/lkm_image_bootstrap.S
           mkdir -p userspace/ksud/bin/aarch64
           cargo build --target aarch64-linux-android --release --manifest-path ./userspace/ksud/Cargo.toml
           install -D userspace/ksud/target/aarch64-linux-android/release/ksud \
