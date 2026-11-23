@@ -478,6 +478,10 @@ jobs:
             echo "KSU_LATEST_COMMIT_DATE=未知" >> $GITHUB_ENV
           fi
 
+          if [ "${{ inputs.ksu_variant }}" = "Next" ]; then
+            python3 "$GITHUB_WORKSPACE/scripts/ksun_reboot_allow.py" "$KERNEL_ROOT"
+          fi
+
       - name: 对齐 Duck app_zygote 时间差
         if: inputs.ksu_variant != 'Next'
         working-directory: ${{ env.KERNEL_ROOT }}
@@ -1219,6 +1223,8 @@ jobs:
         run: |
           cat >> "$DEFCONFIG" << 'EOF'
           CONFIG_KSU=y
+          CONFIG_KALLSYMS=y
+          CONFIG_KPROBES=y
           CONFIG_TMPFS_XATTR=y
           CONFIG_TMPFS_POSIX_ACL=y
           EOF
