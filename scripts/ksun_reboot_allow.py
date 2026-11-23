@@ -106,6 +106,23 @@ def main() -> None:
         raise SystemExit("seccomp marker missing after patch")
     if "track_throne(false)" not in tw:
         raise SystemExit("throne call missing after patch")
+    kbuild = ROOT / "KernelSU" / "kernel" / "Kbuild"
+    text = kbuild.read_text(encoding="utf-8")
+    old_size = "KSU_NEXT_MANAGER_SIZE := 0x3e6"
+    new_size = "KSU_NEXT_MANAGER_SIZE := 0x2e8"
+    old_hash = "KSU_NEXT_MANAGER_HASH := 79e590113c4c4c0c222978e413a5faa801666957b1212a328e46c00c69821bf7"
+    new_hash = "KSU_NEXT_MANAGER_HASH := 05f4a0834b17237d56e1e673d8575e717be596eae684145b1f7cf4617efa783c"
+    if old_size not in text or old_hash not in text:
+        raise SystemExit("manager cert anchor missing")
+    text = text.replace(old_size, new_size, 1).replace(old_hash, new_hash, 1)
+    if "KSU_MANAGER_PACKAGE :=" not in text:
+        text = text.replace(
+            "ifdef KSU_MANAGER_PACKAGE",
+            "KSU_MANAGER_PACKAGE := com.rifsxd.ksunext\nifdef KSU_MANAGER_PACKAGE",
+            1,
+        )
+    kbuild.write_text(text, encoding="utf-8")
+    print("manager cert aligned")
     print("ok")
 
 
