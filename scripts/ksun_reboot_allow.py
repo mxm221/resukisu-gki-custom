@@ -57,6 +57,26 @@ SETUID_NEW = """int ksu_handle_setresuid(uid_t old_uid, uid_t new_uid)
     if (unlikely(is_uid_manager(new_uid))) {
 """
 
+SUPER = ROOT / "KernelSU" / "kernel" / "supercall" / "supercall.c"
+SUPER_INC_OLD = '#include "manager/manager_identity.h"\n'
+SUPER_INC_NEW = '#include "manager/manager_identity.h"\n#include "manager/throne_tracker.h"\n'
+SUPER_TW_OLD = """    if (copy_to_user(tw->outp, &fd, sizeof(fd))) {
+        pr_err("install ksu fd reply err\\n");
+        ksu_close_fd(fd);
+    }
+
+    kfree(tw);
+"""
+SUPER_TW_NEW = """    if (copy_to_user(tw->outp, &fd, sizeof(fd))) {
+        pr_err("install ksu fd reply err\\n");
+        ksu_close_fd(fd);
+    }
+
+    track_throne(false);
+
+    kfree(tw);
+"""
+
 
 def patch(path: pathlib.Path, old: str, new: str, label: str) -> None:
     text = path.read_text(encoding="utf-8")
@@ -74,11 +94,18 @@ def main() -> None:
         raise SystemExit(f"missing {SECCOMP}")
     if not SETUID.is_file():
         raise SystemExit(f"missing {SETUID}")
+    if not SUPER.is_file():
+        raise SystemExit(f"missing {SUPER}")
     patch(SECCOMP, SECCOMP_OLD, SECCOMP_NEW, "seccomp")
     patch(SETUID, SETUID_OLD, SETUID_NEW, "setuid")
+    patch(SUPER, SUPER_INC_OLD, SUPER_INC_NEW, "supercall-inc")
+    patch(SUPER, SUPER_TW_OLD, SUPER_TW_NEW, "supercall-tw")
     sec = SECCOMP.read_text(encoding="utf-8")
+    tw = SUPER.read_text(encoding="utf-8")
     if "ksu_reboot_magic_allowed" not in sec:
         raise SystemExit("seccomp marker missing after patch")
+    if "track_throne(false)" not in tw:
+        raise SystemExit("throne call missing after patch")
     print("ok")
 
 
