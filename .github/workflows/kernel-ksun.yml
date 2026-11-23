@@ -1,5 +1,9 @@
 name: KernelSU-Next 内核
 
+permissions:
+  contents: write
+  actions: write
+
 on:
   workflow_dispatch:
     inputs:
