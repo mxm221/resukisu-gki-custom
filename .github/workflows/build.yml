@@ -263,8 +263,12 @@ jobs:
           rm -rf AnyKernel3/.git
 
           echo "克隆 SUSFS (分支: $SUSFS_BRANCH)..."
-          # ReSukiSU 改用 ShirkNeko susfs4ksu(含 add_sus_mount/add_try_umount 挂载隐藏)
-          git clone https://github.com/ShirkNeko/susfs4ksu.git -b "$SUSFS_BRANCH"
+          if [ "${{ inputs.ksu_variant }}" = "Next" ]; then
+            git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH"
+          else
+            # ReSukiSU 改用 ShirkNeko susfs4ksu(含 add_sus_mount/add_try_umount 挂载隐藏)
+            git clone https://github.com/ShirkNeko/susfs4ksu.git -b "$SUSFS_BRANCH"
+          fi
 
           # 检查是否启用自定义提交
           CONFIG_FILE="config/config"
@@ -447,10 +451,26 @@ jobs:
       - name: 添加 KernelSU
         working-directory: ${{ env.KERNEL_ROOT }}
         run: |
-          echo "添加 ReSukiSU..."
-          curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash $BRANCH
+          if [ "${{ inputs.ksu_variant }}" = "Next" ]; then
+            echo "添加 KernelSU-Next..."
+            ksu_ref="${{ inputs.ksu_branch }}"
+            [ -n "$ksu_ref" ] || ksu_ref="dev"
+            curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/${ksu_ref}/kernel/setup.sh" | bash -s -- "$ksu_ref"
+            if [ -d KernelSU-Next ] && [ ! -e KernelSU ]; then
+              ln -sfn KernelSU-Next KernelSU
+            fi
+            got=$(git -C KernelSU rev-parse HEAD)
+            echo "KSU HEAD $got"
+            case "$got" in
+              "$ksu_ref"*) ;;
+              *) echo "KSU commit mismatch: $got"; exit 1 ;;
+            esac
+          else
+            echo "添加 ReSukiSU..."
+            curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash $BRANCH
+          fi
 
-          if [ -d "KernelSU/.git" ]; then
+          if [ -d "KernelSU/.git" ] || [ -d "KernelSU-Next/.git" ]; then
             KSU_LATEST_COMMIT_DATE=$(git -C KernelSU log -1 --date=format:'%Y-%m-%d %H:%M:%S %z' --format='%cd')
             echo "KSU_LATEST_COMMIT_DATE=$KSU_LATEST_COMMIT_DATE" >> $GITHUB_ENV
             echo "KSU 仓库最新提交日期: $KSU_LATEST_COMMIT_DATE"
@@ -459,6 +479,7 @@ jobs:
           fi
 
       - name: 对齐 Duck app_zygote 时间差
+        if: inputs.ksu_variant != 'Next'
         working-directory: ${{ env.KERNEL_ROOT }}
         run: |
           set -euo pipefail
@@ -1542,7 +1563,7 @@ jobs:
       - name: 上传构建产物
         uses: actions/upload-artifact@v6
         with:
-          name: ReSukiSU_kernel-${{ env.CONFIG }}
+          name: ${{ inputs.ksu_variant }}_kernel-${{ env.CONFIG }}
           path: |
             *AnyKernel3.zip
 #            *.img
@@ -1553,7 +1574,7 @@ jobs:
         if: always() && env.REJ_COUNT > 0
         uses: actions/upload-artifact@v6
         with:
-          name: ReSukiSU_kernel-${{ env.CONFIG }}-Rejects
+          name: ${{ inputs.ksu_variant }}_kernel-${{ env.CONFIG }}-Rejects
           path: patch-rejects/
           if-no-files-found: ignore
           compression-level: 9
